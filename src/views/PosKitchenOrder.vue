@@ -3,6 +3,7 @@ import { useAppOptionStore } from '@/stores/app-option';
 import { RouterLink } from 'vue-router';
 import { Modal } from 'bootstrap';
 import axios from 'axios';
+import PosHeader from '@/components/app/PosHeader.vue'
 
 const appOption = useAppOptionStore();
 
@@ -11,6 +12,9 @@ export default {
 		return {
 			order: ''
 		}
+	},
+	components:{
+		PosHeader,
 	},
 	mounted() {
 		appOption.appSidebarHide = true;
@@ -73,32 +77,7 @@ export default {
 		<!-- BEGIN pos-container -->
 		<div class="pos-container">
 			<!-- BEGIN pos-header -->
-			<div class="pos-header">
-				<div class="logo">
-					<RouterLink to="/pos/counter-checkout">
-						<div class="logo-img"><i class="fa fa-bowl-rice" style="font-size: 1.5rem;"></i></div>
-						<div class="logo-text">Pine & Dine</div>
-					</RouterLink>
-				</div>
-				<div class="time" id="time">{{ getTime() }}</div>
-				<div class="nav">
-					<div class="nav-item">
-						<RouterLink to="/pos/kitchen-order" class="nav-link">
-							<i class="far fa-clock nav-icon"></i>
-						</RouterLink>
-					</div>
-					<div class="nav-item">
-						<RouterLink to="/pos/table-booking" class="nav-link">
-							<i class="far fa-calendar-check nav-icon"></i>
-						</RouterLink>
-					</div>
-					<div class="nav-item">
-						<RouterLink to="/pos/menu-stock" class="nav-link">
-							<i class="fa fa-chart-pie nav-icon"></i>
-						</RouterLink>
-					</div>
-				</div>
-			</div>
+			<pos-header />
 			<!-- END pos-header -->
 		
 			<!-- BEGIN pos-content -->
@@ -106,19 +85,19 @@ export default {
 				<perfect-scrollbar class="pos-content-container h-100 p-0">
 					<div class="pos-task" v-if="order" v-for="order in order">
 						<div class="pos-task-info">
-							<div class="h3 mb-1">Table {{ order.tableNo }}</div>
-							<div class="mb-3">Order No: #{{ order.orderNo }}</div>
+							<div class="h3 mb-1">Mesa {{ order.tableNo }}</div>
+							<div class="mb-3">Orden No: #{{ order.orderNo }}</div>
 							<div class="mb-2">
 								<span class="badge fs-14px" v-bind:class="{ 'bg-theme text-theme-color': order.orderStatus != 'Completed', 'bg-gray-500 text-white': order.orderStatus == 'Completed'}">{{ order.orderType }}</span>
 							</div>
 							<div v-if="order.orderTime"><span v-bind:class="{ 'text-danger fw-bold': order.urgent }">{{ order.orderTime }}</span> time</div>
 							<div v-if="order.totalOrderTime">
-								All dish served<br />{{ order.totalOrderTime }} total time
+								Orden completa servida<br />{{ order.totalOrderTime }} de tiempo de espera
 							</div>
 						</div>
 						<div class="pos-task-body">
 							<div class="fs-16px mb-3">
-								Completed: ({{ getTotalCompletedItems(order.items) }}/{{ order.items.length }})
+								Completado: ({{ getTotalCompletedItems(order.items) }}/{{ order.items.length }})
 							</div>
 							<div class="row gx-4">
 								<div class="col-lg-3 pb-4" v-for="item in order.items">
@@ -127,10 +106,10 @@ export default {
 											<div class="cover" v-bind:style="{ backgroundImage: 'url('+ item.image +')' }"></div>
 											
 											<div class="caption" v-if="item.status == 'Completed'">
-												<div>Completed</div>
+												<div>Completado</div>
 											</div>
 											<div class="caption" v-if="item.status == 'Cancelled'">
-												<div>Cancelled</div>
+												<div>Cancelado</div>
 											</div>
 										</div>
 										<div class="pos-task-product-info">
@@ -146,12 +125,12 @@ export default {
 											<a href="#" class="btn btn-theme" 
 												v-on:click="(event) => setItemStatus(event, item, 'Completed')"
 												v-bind:class="{ 'disabled': item.status == 'Completed' || item.status == 'Cancelled' }">
-												Complete
+												Completar
 											</a>
 											<a href="#" class="btn btn-default" 
 												v-on:click="(event) => setItemStatus(event, item, 'Cancelled')"
 												v-bind:class="{ 'disabled': item.status == 'Completed' || item.status == 'Cancelled' }">
-												Cancel
+												Cancelar
 											</a>
 										</div>
 									</div>
@@ -160,7 +139,7 @@ export default {
 						</div>
 					</div>
 					<div class="px-3 py-5 text-center" v-else>
-						No order found
+						No se encontraron ordenes
 					</div>
 				</perfect-scrollbar>
 			</div>

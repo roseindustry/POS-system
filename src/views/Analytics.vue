@@ -238,7 +238,7 @@ export default {
 <template>
 	<!-- BEGIN page-header -->
 	<h1 class="page-header">
-		Analytics <small>stats, overview & performance</small>
+		Metricas <small>estadisticas, resumen & desempeño</small>
 	</h1>
 	<!-- END page-header -->
 	
@@ -253,12 +253,14 @@ export default {
 				<i class="fa fa-fw fa-caret-down me-n1"></i>
 			</label>
 		</div>
-		<span class="ms-3">compared to {{ getPrevDay() }}</span>
+		<span class="ms-3">comparado con {{ getPrevDay() }}</span>
 	</div>
 	<!-- END daterangepicker -->
 
 	<!-- BEGIN row -->
 	<div class="row" data-masonry='{"percentPosition": true }' v-if="renderComponent">
+		
+		
 		<!-- BEGIN col-4 -->
 		<div class="col-lg-6 col-xl-4 mb-4">
 			<!-- BEGIN card -->
@@ -266,21 +268,20 @@ export default {
 				<card-body>
 					<!-- title -->
 					<div class="d-flex align-items-center mb-2">
-						<div class="flex-fill fw-bold fs-16px">Total sales</div>
-						<a href="#" class="text-decoration-none text-muted">View report</a>
+						<div class="flex-fill fw-bold fs-16px">VALOR DE ORDEN PROMEDIO</div>
 					</div>
 		
 					<!-- stats -->
 					<div class="d-flex align-items-center h3 mb-3">
-						<div>$821.50</div>
-						<small class="fw-400 ms-auto text-theme">+5%</small>
+						<div>$35.12</div>
+						<small class="fw-400 ms-auto text-danger">-3.2%</small>
 					</div>
 					
 					<!-- chart -->
 					<div>
-						<div class="fs-12px fw-bold mb-2 text-muted">SALES OVER TIME</div>
+						<div class="fs-12px fw-bold mb-2 text-muted">HISTORIAL DE ORDENES</div>
 						<div class="chart mb-2" style="height: 190px">
-							<chartjs :type="chart1.type" :data="chart1.data" :options="chart1.options" class="w-100" height="190" />
+							<chartjs :type="chart4.type" :data="chart4.data" :options="chart4.options" class="w-100" height="190" />
 						</div>
 						<div class="d-flex align-items-center justify-content-center fw-bold text-muted">
 							<i class="fa fa-square text-gray-300 me-2"></i> 
@@ -294,52 +295,7 @@ export default {
 			<!-- END card -->
 		</div>
 		<!-- END col-4 -->
-		
-		<!-- BEGIN col-4 -->
-		<div class="col-lg-6 col-xl-4 mb-4">
-			<!-- BEGIN card -->
-			<card>
-				<card-body>
-					<!-- title -->
-					<div class="d-flex align-items-center mb-2">
-						<div class="flex-fill fw-bold fs-16px">Online store sessions</div>
-						<a href="#" class="text-decoration-none text-muted">View report</a>
-					</div>
-		
-					<!-- stats -->
-					<div class="d-flex align-items-center h3 mb-3">
-						<div>39</div>
-						<small class="fw-400 ms-auto text-danger">-2.5%</small>
-					</div>
-					
-					<!-- stats small -->
-					<div class="row">
-						<div class="col-6">Visitors</div>
-						<div class="col-3 text-center">2</div>
-						<div class="col-3 text-end">
-							<span class="text-danger">-</span> 50%
-						</div>
-					</div>
-					
-					<!-- chart -->
-					<div class="mt-3">
-						<div class="fs-12px fw-bold mb-2 text-muted">SESSIONS OVER TIME</div>
-						<div class="chart mb-2" style="height: 190px">
-							<chartjs :type="chart2.type" :data="chart2.data" :options="chart2.options" class="w-100" height="190" />
-						</div>
-						<div class="d-flex align-items-center justify-content-center text-muted fw-bold">
-							<i class="fa fa-square text-gray-300 me-2"></i> 
-							<span class="fs-12px me-4">{{ getPrevDay() }}</span>
-							<i class="fa fa-square text-theme me-2"></i> 
-							<span class="fs-12px">{{ getSelectedDay() }}</span>
-						</div>
-					</div>
-				</card-body>
-			</card>
-			<!-- END card -->
-		</div>
-		<!-- END col-4 -->
-		
+
 		<!-- BEGIN col-4 -->
 		<div class="col-lg-6 col-xl-4 mb-4">
 			<!-- BEGIN card -->
@@ -347,7 +303,7 @@ export default {
 				<card-body>
 					<!-- title -->
 					<div class="d-flex align-items-center mb-3">
-						<div class="flex-fill fw-bold fs-16px">Top product by units sold</div>
+						<div class="flex-fill fw-bold fs-16px">PRODUCTO MAS VENDIDO</div>
 					</div>
 		
 					<!-- list -->
@@ -380,6 +336,7 @@ export default {
 					</div>
 				</card-body>
 			</card>
+			<!-- END card -->
 		</div>
 		<!-- END col-4 -->
 		
@@ -390,7 +347,7 @@ export default {
 				<card-body>
 					<!-- title -->
 					<div class="d-flex align-items-center mb-2">
-						<div class="flex-fill fs-16px fw-bold">Returning customer rate</div>
+						<div class="flex-fill fs-16px fw-bold">PORCENTAJE DE RECURRENCIA DE CLIENTES</div>
 					</div>
 		
 					<!-- stats -->
@@ -401,15 +358,15 @@ export default {
 					
 					<!-- chart -->
 					<div>
-						<div class="fs-12px fw-bold mb-2 text-muted">CUSTOMERS</div>
+						<div class="fs-12px fw-bold mb-2 text-muted">CLIENTES</div>
 						<div class="chart mb-2" style="height: 190px">
 							<chartjs :type="chart3.type" :data="chart3.data" :options="chart3.options" class="w-100" height="190" />
 						</div>
 						<div class="d-flex align-items-center justify-content-center text-muted fw-bold">
 							<i class="fa fa-square text-indigo me-2"></i> 
-							<span class="fs-12px me-4">First-time</span>
+							<span class="fs-12px me-4">Primera vez</span>
 							<i class="fa fa-square text-theme me-2"></i> 
-							<span class="fs-12px">Returning</span>
+							<span class="fs-12px">Recurrente</span>
 						</div>
 					</div>
 				</card-body>
@@ -425,93 +382,7 @@ export default {
 				<card-body>
 					<!-- title -->
 					<div class="d-flex align-items-center mb-2">
-						<div class="flex-fill fw-bold fs-16px">Conversion rate</div>
-						<a href="#" class="text-decoration-none text-muted">View report</a>
-					</div>
-		
-					<!-- stats -->
-					<div class="d-flex align-items-center h3 mb-3">
-						<div>5.29%</div>
-						<small class="fw-400 ms-auto text-theme">+83%</small>
-					</div>
-					
-					<!-- list -->
-					<div>
-						<div class="fs-12px fw-bold mb-2 text-muted">CONVERSION FUNNEL</div>
-						<div class="row mb-2">
-							<div class="col-6">
-								<div>Added to cart</div>
-								<div class="small text-muted">55 session</div>
-							</div>
-							<div class="col-3 text-center">25.28%</div>
-							<div class="col-3 text-center"><span class="text-danger">-</span> 5%</div>
-						</div>
-						<div class="row mb-2">
-							<div class="col-6">
-								<div>Reached checkout</div>
-								<div class="small text-muted">25 session</div>
-							</div>
-							<div class="col-3 text-center">15.28%</div>
-							<div class="col-3 text-center"><span class="text-theme">+</span> 82%</div>
-						</div>
-						<div class="row">
-							<div class="col-6">
-								<div>Sessions converted</div>
-								<div class="small text-muted">5 session</div>
-							</div>
-							<div class="col-3 text-center">5.28%</div>
-							<div class="col-3 text-center"><span class="text-theme">+</span> 82%</div>
-						</div>
-					</div>
-				</card-body>
-			</card>
-			<!-- END card -->
-		</div>
-		<!-- END col-4 -->
-		
-		<!-- BEGIN col-4 -->
-		<div class="col-lg-6 col-xl-4 mb-4">
-			<!-- BEGIN card -->
-			<card>
-				<card-body>
-					<!-- title -->
-					<div class="d-flex align-items-center mb-2">
-						<div class="flex-fill fw-bold fs-16px">Average order value</div>
-					</div>
-		
-					<!-- stats -->
-					<div class="d-flex align-items-center h3 mb-3">
-						<div>$35.12</div>
-						<small class="fw-400 ms-auto text-danger">-3.2%</small>
-					</div>
-					
-					<!-- chart -->
-					<div>
-						<div class="fs-12px fw-bold mb-2 text-muted">ORDERS BY TIME</div>
-						<div class="chart mb-2" style="height: 190px">
-							<chartjs :type="chart4.type" :data="chart4.data" :options="chart4.options" class="w-100" height="190" />
-						</div>
-						<div class="d-flex align-items-center justify-content-center fw-bold text-muted">
-							<i class="fa fa-square text-gray-300 me-2"></i> 
-							<span class="fs-12px me-4">{{ getPrevDay() }}</span>
-							<i class="fa fa-square text-theme me-2"></i> 
-							<span class="fs-12px">{{ getSelectedDay() }}</span>
-						</div>
-					</div>
-				</card-body>
-			</card>
-			<!-- END card -->
-		</div>
-		<!-- END col-4 -->
-		
-		<!-- BEGIN col-4 -->
-		<div class="col-lg-6 col-xl-4 mb-4">
-			<!-- BEGIN card -->
-			<card>
-				<card-body>
-					<!-- title -->
-					<div class="d-flex align-items-center mb-2">
-						<div class="flex-fill fw-bold fs-16px">Total orders</div>
+						<div class="flex-fill fw-bold fs-16px">ORDENES TOTALES</div>
 					</div>
 		
 					<!-- stats -->
@@ -522,7 +393,7 @@ export default {
 					
 					<!-- chart -->
 					<div>
-						<div class="fs-12px fw-bold mb-2 text-muted">ORDERS OVER TIME</div>
+						<div class="fs-12px fw-bold mb-2 text-muted">HISTORIAL DE ORDENES</div>
 						<div class="chart mb-2">
 							<chartjs :type="chart5.type" :data="chart5.data" :options="chart5.options" class="w-100" height="190" />
 						</div>
@@ -538,32 +409,36 @@ export default {
 			<!-- END card -->
 		</div>
 		<!-- END col-4 -->
-		
+
 		<!-- BEGIN col-4 -->
 		<div class="col-lg-6 col-xl-4 mb-4">
 			<!-- BEGIN card -->
 			<card>
 				<card-body>
 					<!-- title -->
-					<div class="d-flex align-items-center mb-3">
-						<div class="flex-fill fw-bold fs-16px">Top pages by sessions</div>
+					<div class="d-flex align-items-center mb-2">
+						<div class="flex-fill fw-bold fs-16px">VENTALES TOTALES</div>
+						<a href="#" class="text-decoration-none text-muted">Ver reporte</a>
 					</div>
 		
-					<!-- list -->
-					<div class="row mb-2">
-						<div class="col-6"><div><a href="#" class="text-decoration-none text-muted">/phone/apple-11-pro-max</a></div></div>
-						<div class="col-3 text-center">15</div>
-						<div class="col-3 text-center"><span class="text-theme">+</span> 15%</div>
+					<!-- stats -->
+					<div class="d-flex align-items-center h3 mb-3">
+						<div>$821.50</div>
+						<small class="fw-400 ms-auto text-theme">+5%</small>
 					</div>
-					<div class="row mb-2">
-						<div class="col-6"><div><a href="#" class="text-decoration-none text-muted">/tablet/apple-ipad-pro-128gb</a></div></div>
-						<div class="col-3 text-center">12</div>
-						<div class="col-3 text-center"><span class="text-theme">+</span> 8%</div>
-					</div>
-					<div class="row">
-						<div class="col-6"><div><a href="#" class="text-decoration-none text-muted">/desktop/apple-mac-pro</a></div></div>
-						<div class="col-3 text-center">4</div>
-						<div class="col-3 text-center"><span class="text-danger">-</span> 3%</div>
+					
+					<!-- chart -->
+					<div>
+						<div class="fs-12px fw-bold mb-2 text-muted">HISTORIAL DE VENTAS</div>
+						<div class="chart mb-2" style="height: 190px">
+							<chartjs :type="chart1.type" :data="chart1.data" :options="chart1.options" class="w-100" height="190" />
+						</div>
+						<div class="d-flex align-items-center justify-content-center fw-bold text-muted">
+							<i class="fa fa-square text-gray-300 me-2"></i> 
+							<span class="fs-12px me-4">{{ getPrevDay() }}</span>
+							<i class="fa fa-square text-theme me-2"></i> 
+							<span class="fs-12px">{{ getSelectedDay() }}</span>
+						</div>
 					</div>
 				</card-body>
 			</card>
@@ -571,97 +446,6 @@ export default {
 		</div>
 		<!-- END col-4 -->
 		
-		<!-- BEGIN col-4 -->
-		<div class="col-lg-6 col-xl-4 mb-4">
-			<!-- BEGIN card -->
-			<card>
-				<card-body>
-					<!-- title -->
-					<div class="d-flex align-items-center mb-3">
-						<div class="flex-fill fw-bold fs-16px">Sessions by device type</div>
-						<a href="#" class="text-decoration-none text-muted">View report</a>
-					</div>
-		
-					<!-- list -->
-					<div class="row mb-2">
-						<div class="col-6">
-							<div>Desktop</div>
-						</div>
-						<div class="col-3 text-center">247</div>
-						<div class="col-3 text-center"><span class="text-theme">+</span> 4.2%</div>
-					</div>
-					<div class="row mb-2">
-						<div class="col-6">
-							<div>Mobile</div>
-						</div>
-						<div class="col-3 text-center">198</div>
-						<div class="col-3 text-center"><span class="text-danger">-</span> 2.2%</div>
-					</div>
-					<div class="row">
-						<div class="col-6">
-							<div>Tablet</div>
-						</div>
-						<div class="col-3 text-center">35</div>
-						<div class="col-3 text-center"><span class="text-theme">+</span> 8.9%</div>
-					</div>
-				</card-body>
-			</card>
-			<!-- END card -->
 		</div>
-		<!-- END col-4 -->
-		
-		<!-- BEGIN col-4 -->
-		<div class="col-lg-6 col-xl-4 mb-4">
-			<!-- BEGIN card -->
-			<card>
-				<card-body>
-					<!-- title -->
-					<div class="d-flex align-items-center mb-3">
-						<div class="flex-fill fw-600 fs-16px">Visits from social sources</div>
-						<a href="#" class="text-decoration-none text-muted">View report</a>
-					</div>
-		
-					<!-- list -->
-					<div class="row mb-2">
-						<div class="col-6">
-							<div>Facebook</div>
-						</div>
-						<div class="col-3 text-center">247</div>
-						<div class="col-3 text-center"><span class="text-theme">+</span> 4.2%</div>
-					</div>
-					<div class="row mb-2">
-						<div class="col-6">
-							<div>Twitter</div>
-						</div>
-						<div class="col-3 text-center">153</div>
-						<div class="col-3 text-center"><span class="text-theme">+</span> 8.2%</div>
-					</div>
-					<div class="row mb-2">
-						<div class="col-6">
-							<div>Instagram</div>
-						</div>
-						<div class="col-3 text-center">98</div>
-						<div class="col-3 text-center"><span class="text-danger">-</span> 3.4%</div>
-					</div>
-					<div class="row mb-2">
-						<div class="col-6">
-							<div>Pinterest</div>
-						</div>
-						<div class="col-3 text-center">75</div>
-						<div class="col-3 text-center"><span class="text-theme">+</span> 1.9%</div>
-					</div>
-					<div class="row">
-						<div class="col-6">
-							<div>Dribbble</div>
-						</div>
-						<div class="col-3 text-center">22</div>
-						<div class="col-3 text-center"><span class="text-theme">+</span> 2.1%</div>
-					</div>
-				</card-body>
-			</card>
-			<!-- END card -->
-		</div>
-		<!-- END col-4 -->
-	</div>
 	<!-- END row -->
 </template>

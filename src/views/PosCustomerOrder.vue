@@ -1,7 +1,11 @@
 <script>
 import { useAppOptionStore } from '@/stores/app-option';
 import { RouterLink } from 'vue-router';
+import { db } from '@/firebase/init';
+import { ref as dataRef, get, child } from 'firebase/database';
 import { Modal } from 'bootstrap';
+import Toastify from 'toastify-js'
+import 'toastify-js/src/toastify.css'
 import axios from 'axios';
 
 const appOption = useAppOptionStore();
@@ -9,11 +13,15 @@ const appOption = useAppOptionStore();
 export default {
 	data() {
 		return {
-			menu: '',
+			menu: {
+				// food: [],
+			},
+			menuItems: [],
+			categories: [],
 			order: '',
 			orderHistory: '',
 			orderNo: '#0000',
-			tableNo: '0',
+			currentTable: null,
 			modal: '',
 			modalData: '',
 			modalQuantity: '',
@@ -27,14 +35,17 @@ export default {
 		appOption.appHeaderHide = true;
 		appOption.appContentClass = 'p-0';
 		appOption.appContentFullHeight = true;
-		
+
 		axios.get('/assets/data/pos/customer-order.json').then((response) => {
 			this.menu = response.data;
 			this.order = response.data.order;
 			this.orderNo = response.data.orderNo;
 			this.orderHistory = response.data.orderHistory;
-			this.tableNo = response.data.tableNo;
+			this.tables = response.data.tables;
 		});
+
+		this.fetchCategories();
+		//this.fetchMenuItems();
 	},
 	beforeUnmount() {
 		appOption.appSidebarHide = false;
@@ -43,30 +54,30 @@ export default {
 		appOption.appContentFullHeight = false;
 	},
 	methods: {
-		toggleMobileSidebar: function() {
+		toggleMobileSidebar: function () {
 			this.mobileSidebarToggled = !this.mobileSidebarToggled;
 		},
-		getOrderTotal: function() {
+		getOrderTotal: function () {
 			return (this.order) ? this.order.length : 0;
 		},
-		getOrderHistoryTotal: function() {
+		getOrderHistoryTotal: function () {
 			return (this.orderHistory) ? this.orderHistory.length : 0;
 		},
-		getSubTotalPrice: function() {
+		getSubTotalPrice: function () {
 			var value = 0;
 			for (var i = 0; i < this.order.length; i++) {
 				value += parseFloat(this.order[i].price) * parseInt(this.order[i].quantity);
 			}
 			return value.toFixed(2);
 		},
-		getTaxesPrice: function() {
+		getTaxesPrice: function () {
 			var value = 0;
 			for (var i = 0; i < this.order.length; i++) {
 				value += parseFloat(this.order[i].price) * parseInt(this.order[i].quantity) * .06;
 			}
 			return value.toFixed(2);
 		},
-		getTotalPrice: function() {
+		getTotalPrice: function () {
 			var value = 0;
 			for (var i = 0; i < this.order.length; i++) {
 				value += parseFloat(this.order[i].price) * parseInt(this.order[i].quantity);
@@ -74,12 +85,12 @@ export default {
 			}
 			return value.toFixed(2);
 		},
-		deductQty: function(event, id) {
+		deductQty: function (event, id) {
 			event.preventDefault();
 			for (var i = 0; i < this.order.length; i++) {
 				if (this.order[i].id == id) {
 					var newQty = parseInt(this.order[i].quantity) - 1;
-					
+
 					if (newQty < 1) {
 						newQty = 1;
 					}
@@ -87,38 +98,57 @@ export default {
 				}
 			}
 		},
-		addQty: function(event, id) {
+		addQty: function (event, id) {
 			event.preventDefault();
-			
+
 			for (var i = 0; i < this.order.length; i++) {
 				if (this.order[i].id == id) {
 					var newQty = parseInt(this.order[i].quantity) + 1;
-					
+
 					this.order[i].quantity = newQty;
 				}
 			}
 		},
-		showType: function(event, type) {
-			event.preventDefault();
-			
-			for (var i = 0; i < this.menu.category.length; i++) {
-				if (this.menu.category[i].type == type) {
-					this.menu.category[i].active = true;
-				} else {
-					this.menu.category[i].active = false;
-				}
-			}
-			for (var i = 0; i < this.menu.food.length; i++) {
-				if (this.menu.food[i].type == type || type == 'all') {
-					this.menu.food[i].hide = false;
-				} else {
-					this.menu.food[i].hide = true;
-				}
+		async fetchCategories() {
+			const categoriesRef = dataRef(db, 'Categories');
+			const categorySnapshot = await get(categoriesRef);
+			if (categorySnapshot.exists()) {
+				categorySnapshot.forEach((childSnapshot) => {
+					const categoryData = childSnapshot.val();
+					this.categories.push({
+						id: childSnapshot.key,
+						name: categoryData.name,
+						active: false,
+					});
+					// Set the first category as active
+					if (this.categories.length > 0) {
+						this.categories[0].active = true;
+					}
+				});
+			} else {
+				console.log("No data available");
 			}
 		},
-		showFoodModal: function(event, id) {
+		setActiveCategory(index) {
+			// Set all categories to inactive
+			this.categories.forEach(category => {
+				category.active = false;
+			});
+			// Set the clicked category to active
+			this.categories[index].active = true;
+
+			// Implement logic to filter menu.food based on the active category, if necessary
+		},
+		generateStars(rating) {
+			let stars = [];
+			for (let i = 1; i <= 5; i++) {
+				stars.push({ filled: i <= rating });
+			}
+			return stars;
+		},
+		showFoodModal: function (event, id) {
 			event.preventDefault();
-			
+
 			for (var i = 0; i < this.menu.food.length; i++) {
 				if (this.menu.food[i].id == id) {
 					this.modalData = this.menu.food[i];
@@ -132,26 +162,26 @@ export default {
 			this.modal = new Modal(this.$refs.modalPosItem);
 			this.modal.show();
 		},
-		addModalQty: function(event) {
+		addModalQty: function (event) {
 			event.preventDefault();
-			
+
 			this.modalQuantity = this.modalQuantity + 1;
 		},
-		deductModalQty: function(event) {
+		deductModalQty: function (event) {
 			event.preventDefault();
-			
+
 			var newQty = parseInt(this.modalQuantity) - 1;
-		
+
 			if (newQty < 1) {
 				newQty = 1;
 			}
 			this.modalQuantity = newQty;
 		},
-		addToCart: function(event) {
+		submitOrder: function (event) {
 			event.preventDefault();
-			
+
 			this.modal.hide();
-			
+
 			var options = [];
 			var extraPrice = 0;
 			if (this.modalSelectedSize) {
@@ -170,7 +200,7 @@ export default {
 					options.push(option);
 				}
 			}
-			
+
 			this.order.push({
 				"id": (this.order.length + 1),
 				"image": this.modalData.image,
@@ -179,44 +209,108 @@ export default {
 				"quantity": this.modalQuantity,
 				"options": options
 			});
-			
+
 			setTimeout(() => {
 				this.$refs.posSidebarBody.$el.scrollTop = 9999;
 				this.$refs.posSidebarBody.ps.update();
 			}, 500);
 		},
-		toggleConfirmation: function(event, id, value) {
+		toggleConfirmation: function (event, id, value) {
 			event.preventDefault();
-			
+
 			for (var i = 0; i < this.order.length; i++) {
 				if (this.order[i].id == id) {
 					this.order[i].confirmation = value;
 				}
 			}
 		},
-		removeOrder: function(event, id) {
+		removeOrder: function (event, id) {
 			event.preventDefault();
-			
+
 			for (var i = 0; i < this.order.length; i++) {
 				if (this.order[i].id == id) {
 					this.order.splice(i, 1);
 				}
 			}
-		}
+		},
+		selectTable(table) {
+			this.currentTable = table;
+			// Prevent the default link behavior
+			event.preventDefault();
+		},
+		submitOrderToKitchen() {
+			try {
+				// Form submission logic here
+				console.log('Form submitted:', this.order);
+
+				// Success toast
+				Toastify({
+					text: "Orden creada con éxito!",
+					duration: 3000,
+					close: true,
+					gravity: "top", // `top` or `bottom`
+					position: "right", // `left`, `center` or `right`
+					stopOnFocus: true, // Prevents dismissing of toast on hover
+					style: {
+						background: "linear-gradient(to right, #00b09b, #96c93d)",
+					},
+				}).showToast();
+
+				// Clear selections after successful submission
+				// this.clearOrderSelections();
+			} catch (error) {
+				// Log the error or handle it as needed
+				console.error('An error occurred during form submission:', error);
+
+				// Error toast
+				Toastify({
+					text: "Error al crear la orden. Por favor, inténtelo de nuevo.",
+					duration: 3000,
+					close: true,
+					gravity: "top", // `top` or `bottom`
+					position: "right", // `left`, `center` or `right`
+					stopOnFocus: true, // Prevents dismissing of toast on hover
+					style: {
+						background: "linear-gradient(to right, #ff416c, #ff4b2b)",
+					},
+				}).showToast();
+			}
+		},
+		// clearOrderSelections() {
+		// 	// clear order sumary
+		// 	this.order = '';
+		// },
+		// createOrder: function (event, id){
+		// 	await DataStore.save(
+		// 		new Orders({
+		// 			"customer_id": 1020,
+		// 			"tenant_id": 1020,
+		// 			"orderNumber": 1020,
+		// 			"tableNumber": 3,
+		// 			"type": "Para llevar",
+		// 			"status": true,
+		// 			"orderDate": "1970-01-01Z",
+		// 			"Customers": /* Provide a Customers instance here */,
+		// 			"MenuItems": [],
+		// 			"Tenants": /* Provide a Tenants instance here */
+		// 		})
+		// 	);
+		// }
 	}
 }
 </script>
 <template>
 	<!-- BEGIN pos -->
-	<div class="pos pos-with-menu pos-with-sidebar" v-bind:class="{ 'pos-mobile-sidebar-toggled': mobileSidebarToggled }">
+	<div class="pos pos-with-menu pos-with-sidebar"
+		v-bind:class="{ 'pos-mobile-sidebar-toggled': mobileSidebarToggled }">
 		<div class="pos-container">
 			<!-- BEGIN pos-menu -->
 			<div class="pos-menu">
 				<!-- BEGIN logo -->
 				<div class="logo">
-					<RouterLink to="/">
-						<div class="logo-img"><i class="fa fa-bowl-rice"></i></div>
-						<div class="logo-text">Pine & Dine</div>
+					<RouterLink to="#">
+						<div class="logo-img"><i class="fa fa-light fa-burger"></i></div>
+						<div class="logo-text">Restaurante</div>
 					</RouterLink>
 				</div>
 				<!-- END logo -->
@@ -224,9 +318,10 @@ export default {
 				<div class="nav-container">
 					<perfect-scrollbar class="h-100">
 						<ul class="nav nav-tabs">
-							<li class="nav-item" v-for="category in menu.category">
-								<a class="nav-link" v-bind:class="{'active': category.active }" href="#" v-on:click="(event) => showType(event, category.type)">
-									<i v-bind:class="category.icon"></i> {{ category.text }}
+							<li class="nav-item" v-for="(category, index) in categories" :key="category.name">
+								<a class="nav-link" :class="{ 'active': category.active }" href="#"
+									@click.prevent="setActiveCategory(index)">
+									{{ category.name }}
 								</a>
 							</li>
 						</ul>
@@ -235,22 +330,35 @@ export default {
 				<!-- END nav-container -->
 			</div>
 			<!-- END pos-menu -->
-		
+
 			<!-- BEGIN pos-content -->
 			<div class="pos-content">
 				<div class="pos-content-container h-100">
 					<div class="row gx-4">
 						<template v-for="food in menu.food">
 							<div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" v-if="!food.hide">
-								<a href="#" class="pos-product" v-bind:class="{ 'not-available': !food.available }" v-on:click="(event) => showFoodModal(event, food.id)">
-									<div class="img" v-bind:style="{ backgroundImage: 'url('+ food.image +')' }"></div>
+								<a href="#" class="pos-product" v-bind:class="{ 'not-available': !food.available }"
+									v-on:click="(event) => showFoodModal(event, food.id)">
+									<div class="img" v-bind:style="{ backgroundImage: 'url(' + food.image + ')' }">
+									</div>
 									<div class="info">
 										<div class="title">{{ food.title }}</div>
 										<div class="desc">{{ food.description }}</div>
 										<div class="price">${{ food.price }}</div>
+										<div class="rating">
+											<template v-if="food.rating && food.rating > 0">
+												<font-awesome-icon v-for="(star, index) in generateStars(food.rating)"
+													:key="index" icon="star"
+													:class="{ 'active': star.filled, 'filled': star.filled }" />
+											</template>
+											<template v-else>
+												Sin reviews
+											</template>
+											<!-- <a href="#"><small>({{ food.ratings.length }} reviews)</small></a> -->
+										</div>
 									</div>
 									<div class="not-available-text" v-if="!food.available">
-										<div>Not Available</div>
+										<div>No disponible</div>
 									</div>
 								</a>
 							</div>
@@ -259,7 +367,7 @@ export default {
 				</div>
 			</div>
 			<!-- END pos-content -->
-		
+
 			<!-- BEGIN pos-sidebar -->
 			<div class="pos-sidebar">
 				<div class="h-100 d-flex flex-column p-0">
@@ -270,25 +378,52 @@ export default {
 								<i class="bi bi-chevron-left"></i>
 							</button>
 						</div>
-						<div class="icon"><i class="fa fa-plate-wheat"></i></div>
-						<div class="title">Table {{ tableNo }}</div>
-						<div class="order">Order: <b>{{ orderNo }}</b></div>
+						<div class="container">
+							<div class="row justify-content-between">
+								<div class="col">
+									<div class="input-group" id="table-number">
+										<div class="input-group-prepend">
+											<span class="input-group-text" id="mesa-addon"><i class="fa fa-chair"
+													style="margin-right: 3px;"></i><b>Mesa</b></span>
+										</div>
+										<input type="text" class="form-control" aria-label="mesa"
+											aria-describedby="mesa-addon">
+									</div>
+								</div>
+								<div class="col" id="order-number">
+									<div class="input-group">
+										<div class="input-group-prepend">
+											<span class="input-group-text" id="order-addon"><i class="fa fa-plate-wheat"
+													style="margin-right: 3px;"></i><b># de Orden</b></span>
+										</div>
+										<input type="text" class="form-control" aria-label="order"
+											aria-describedby="order-addon" v-model="orderNo">
+										<!-- {{ orderNo ? order.orderNo + 1 : 0000 }} -->
+									</div>
+								</div>
+							</div>
+						</div>
 					</div>
 					<!-- END pos-sidebar-header -->
-				
+
 					<!-- BEGIN pos-sidebar-nav -->
 					<div class="pos-sidebar-nav">
 						<ul class="nav nav-tabs nav-fill">
 							<li class="nav-item">
-								<a class="nav-link active" href="#" data-bs-toggle="tab" data-bs-target="#newOrderTab">New Order ({{ getOrderTotal() }})</a>
+								<a class="nav-link active" href="#" data-bs-toggle="tab"
+									data-bs-target="#newOrderTab">Orden
+									nueva ({{ getOrderTotal() }})</a>
 							</li>
 							<li class="nav-item">
-								<a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#orderHistoryTab">Order History ({{ getOrderHistoryTotal() }})</a>
+								<a class="nav-link" href="#" data-bs-toggle="tab"
+									data-bs-target="#orderHistoryTab">Ordenes
+									({{ getOrderHistoryTotal()
+									}})</a>
 							</li>
 						</ul>
 					</div>
 					<!-- END pos-sidebar-nav -->
-				
+
 					<!-- BEGIN pos-sidebar-body -->
 					<perfect-scrollbar ref="posSidebarBody" class="pos-sidebar-body tab-content">
 						<!-- BEGIN #newOrderTab -->
@@ -296,33 +431,45 @@ export default {
 							<!-- BEGIN pos-order -->
 							<div class="pos-order" v-if="order.length > 0" v-for="order in order">
 								<div class="pos-order-product">
-									<div class="img" v-bind:style="{ backgroundImage: 'url('+ order.image +')' }"></div>
+									<div class="img" v-bind:style="{ backgroundImage: 'url(' + order.image + ')' }">
+									</div>
 									<div class="flex-1">
 										<div class="h6 mb-1">{{ order.title }}</div>
 										<div class="small">${{ order.price }}</div>
 										<div class="small mb-2">
-											<div v-for="option in order.options">- {{ option.key }}: {{ option.value }}</div>
+											<div v-for="option in order.options">- {{ option.key }}: {{ option.value }}
+											</div>
 										</div>
 										<div class="d-flex">
-											<a href="#" class="btn btn-secondary btn-sm" v-on:click="(event) => deductQty(event, order.id)"><i class="fa fa-minus"></i></a>
-											<input type="text" v-model="order.quantity" class="form-control w-50px form-control-sm mx-2 bg-white bg-opacity-25 text-center" />
-											<a href="#" class="btn btn-secondary btn-sm" v-on:click="(event) => addQty(event, order.id)"><i class="fa fa-plus"></i></a>
+											<a href="#" class="btn btn-secondary btn-sm"
+												v-on:click="(event) => deductQty(event, order.id)"><i
+													class="fa fa-minus"></i></a>
+											<input type="text" v-model="order.quantity"
+												class="form-control w-50px form-control-sm mx-2 bg-white bg-opacity-25 text-center" />
+											<a href="#" class="btn btn-secondary btn-sm"
+												v-on:click="(event) => addQty(event, order.id)"><i
+													class="fa fa-plus"></i></a>
 										</div>
 									</div>
 								</div>
 								<div class="pos-order-price d-flex flex-column">
 									<div>${{ (order.price * order.quantity).toFixed(2) }}</div>
-									<div class="text-end mt-auto"><a href="#" v-on:click="(event) => toggleConfirmation(event, order.id, true)" class="btn btn-default btn-sm"><i class="fa fa-trash"></i></a></div>
+									<div class="text-end mt-auto"><a href="#"
+											v-on:click="(event) => toggleConfirmation(event, order.id, true)"
+											class="btn btn-default btn-sm"><i class="fa fa-trash"></i></a></div>
 								</div>
-								
-								<div class="pos-order-confirmation text-center d-flex flex-column justify-content-center" v-if="order.confirmation">
+
+								<div class="pos-order-confirmation text-center d-flex flex-column justify-content-center"
+									v-if="order.confirmation">
 									<div class="mb-1">
 										<i class="fa fa-trash fs-36px lh-1"></i>
 									</div>
-									<div class="mb-2">Remove this item?</div>
+									<div class="mb-2">¿Remover este item?</div>
 									<div>
-										<a href="#" v-on:click="(event) => toggleConfirmation(event, order.id, false)" class="btn btn-default btn-sm ms-auto me-2 width-100px">No</a>
-										<a href="#" v-on:click="(event) => removeOrder(event, order.id)" class="btn btn-theme btn-sm width-100px">Yes</a>
+										<a href="#" v-on:click="(event) => toggleConfirmation(event, order.id, false)"
+											class="btn btn-default btn-sm ms-auto me-2 width-100px">No</a>
+										<a href="#" v-on:click="(event) => removeOrder(event, order.id)"
+											class="btn btn-theme btn-sm width-100px">Si</a>
 									</div>
 								</div>
 							</div>
@@ -332,27 +479,35 @@ export default {
 									<div class="mb-3 mt-n5">
 										<i class="fa fa-utensils text-body text-opacity-25" style="font-size: 5em"></i>
 									</div>
-									<h5>No order found</h5>
+									<h5>No se encontraron ordenes</h5>
 								</div>
 							</div>
 						</div>
-						<!-- END #orderHistoryTab -->
-					
+
 						<!-- BEGIN #orderHistoryTab -->
 						<div class="tab-pane fade h-100" id="orderHistoryTab">
-							<div class="h-100 d-flex align-items-center justify-content-center text-center p-20">
+							<div v-if="orders && orders.length" class="content">
+								Replace the div below with your desired layout for displaying each order
+								<div v-for="order in orders" :key="order.id" class="order">
+									<p>Orden: #{{ order.orderNo }}</p>
+									<p>Fecha de orden: {{ order.date }}</p>
+									Add more order details here
+								</div>
+							</div>
+							<div v-else class="h-100 d-flex align-items-center justify-content-center text-center p-20">
 								<div>
 									<div class="mb-3 mt-n5">
-										<i class="fa fa-shopping-bag text-body text-opacity-25" style="font-size: 5em"></i>
+										<i class="fa fa-shopping-bag text-body text-opacity-25"
+											style="font-size: 5em"></i>
 									</div>
-									<h5>No order history found</h5>
+									<h5>No hay datos</h5>
 								</div>
 							</div>
 						</div>
 						<!-- END #orderHistoryTab -->
 					</perfect-scrollbar>
 					<!-- END pos-sidebar-body -->
-				
+
 					<!-- BEGIN pos-sidebar-footer -->
 					<div class="pos-sidebar-footer">
 						<div class="d-flex align-items-center mb-2">
@@ -360,7 +515,7 @@ export default {
 							<div class="flex-1 text-end h6 mb-0">${{ getSubTotalPrice() }}</div>
 						</div>
 						<div class="d-flex align-items-center">
-							<div>Taxes (6%)</div>
+							<div>Impuesto (6%)</div>
 							<div class="flex-1 text-end h6 mb-0">${{ getTaxesPrice() }}</div>
 						</div>
 						<hr />
@@ -370,22 +525,29 @@ export default {
 						</div>
 						<div class="mt-3">
 							<div class="d-flex">
-								<a href="#" class="btn btn-default w-70px me-10px d-flex align-items-center justify-content-center">
+								<router-link to="/"
+									class="btn btn-default w-70px me-10px d-flex align-items-center justify-content-center">
 									<span>
-										<i class="fa fa-bell fa-lg my-10px d-block"></i>
-										<span class="small fw-semibold">Service</span>
+										<span class="small fw-semibold">Volver</span>
+									</span>
+								</router-link>
+								<a href="#" @click.prevent="clearOrderSelections"
+									class="btn btn-default w-70px me-10px d-flex align-items-center justify-content-center">
+									<span>
+										<span class="small fw-semibold">Cancelar</span>
 									</span>
 								</a>
-								<a href="#" class="btn btn-default w-70px me-10px d-flex align-items-center justify-content-center">
+								<router-link to="/pos/kitchen-order"
+									class="btn btn-default w-70px me-10px d-flex align-items-center justify-content-center">
 									<span>
-										<i class="fa fa-receipt fa-fw fa-lg my-10px d-block"></i>
-										<span class="small fw-semibold">Bill</span>
+										<span class="small fw-semibold">Ver ordenes de cocina</span>
 									</span>
-								</a>
-								<a href="#" class="btn btn-theme flex-fill d-flex align-items-center justify-content-center">
+								</router-link>
+								<a href="#" @click.prevent="submitOrderToKitchen"
+									class="btn btn-theme flex-fill d-flex align-items-center justify-content-center">
 									<span>
 										<i class="fa fa-cash-register fa-lg my-10px d-block"></i>
-										<span class="small fw-semibold">Submit Order</span>
+										<span class="small fw-semibold">Enviar Orden</span>
 									</span>
 								</a>
 							</div>
@@ -398,24 +560,26 @@ export default {
 		</div>
 	</div>
 	<!-- END pos -->
-	
+
 	<!-- BEGIN pos-mobile-sidebar-toggler -->
 	<a href="#" class="pos-mobile-sidebar-toggler" v-on:click="toggleMobileSidebar()">
 		<i class="bi bi-bag"></i>
 		<span class="badge">{{ getOrderTotal() }}</span>
 	</a>
 	<!-- END pos-mobile-sidebar-toggler -->
-	
+
+	<!-- Modal to select a food item -->
 	<div class="modal modal-pos fade" ref="modalPosItem">
 		<div class="modal-dialog modal-lg">
 			<div class="modal-content border-0">
-				<form v-on:submit.prevent="addToCart">
+				<form v-on:submit.prevent="submitOrder">
 					<card v-if="modalData">
 						<card-body class="p-0">
 							<a href="#" data-bs-dismiss="modal" class="btn-close position-absolute top-0 end-0 m-4"></a>
 							<div class="modal-pos-product">
 								<div class="modal-pos-product-img">
-									<div class="img" v-bind:style="{ backgroundImage: 'url('+ modalData.image +')' }"></div>
+									<div class="img" v-bind:style="{ backgroundImage: 'url(' + modalData.image + ')' }">
+									</div>
 								</div>
 								<div class="modal-pos-product-info d-flex flex-column">
 									<div class="h4 mb-2">{{ modalData.title }}</div>
@@ -424,18 +588,24 @@ export default {
 									</div>
 									<div class="h4 mb-3">${{ modalData.price }}</div>
 									<div class="d-flex mb-3">
-										<a href="#" class="btn btn-secondary" v-on:click="(event) => deductModalQty(event)"><i class="fa fa-minus"></i></a>
-										<input type="text" class="form-control w-50px fw-bold mx-2 text-center" name="qty" v-bind:value="modalQuantity" />
-										<a href="#" class="btn btn-secondary" v-on:click="(event) => addModalQty(event)"><i class="fa fa-plus"></i></a>
+										<a href="#" class="btn btn-secondary"
+											v-on:click="(event) => deductModalQty(event)"><i
+												class="fa fa-minus"></i></a>
+										<input type="text" class="form-control w-50px fw-bold mx-2 text-center"
+											name="qty" v-bind:value="modalQuantity" />
+										<a href="#" class="btn btn-secondary"
+											v-on:click="(event) => addModalQty(event)"><i class="fa fa-plus"></i></a>
 									</div>
 									<template v-if="modalData.options">
 										<hr class="opacity-1">
 										<div class="mb-2" v-if="modalData.options.size">
-											<div class="fw-bold">Size:</div>
+											<div class="fw-bold">Tamaño:</div>
 											<div class="option-list">
 												<div class="option" v-for="(size, index) in modalData.options.size">
-													<input type="radio" v-bind:id="'size['+ index +']'" name="size" class="option-input" v-model="modalSelectedSize" v-bind:value="size.text" />
-													<label class="option-label" v-bind:for="'size['+ index +']'">
+													<input type="radio" v-bind:id="'size[' + index + ']'" name="size"
+														class="option-input" v-model="modalSelectedSize"
+														v-bind:value="size.text" />
+													<label class="option-label" v-bind:for="'size[' + index + ']'">
 														<span class="option-text">{{ size.text }}</span>
 														<span class="option-price">+{{ size.price }}</span>
 													</label>
@@ -443,11 +613,13 @@ export default {
 											</div>
 										</div>
 										<div class="mb-2" v-if="modalData.options.addon">
-											<div class="fw-bold">Add On:</div>
+											<div class="fw-bold">Adicionales:</div>
 											<div class="option-list">
 												<div class="option" v-for="(addon, index) in modalData.options.addon">
-													<input type="checkbox" v-bind:name="'addon['+ index +']'" v-bind:value="addon.text" v-model="modalSelectedAddon" class="option-input" v-bind:id="'addon['+ index +']'" />
-													<label class="option-label" v-bind:for="'addon['+ index +']'">
+													<input type="checkbox" v-bind:name="'addon[' + index + ']'"
+														v-bind:value="addon.text" v-model="modalSelectedAddon"
+														class="option-input" v-bind:id="'addon[' + index + ']'" />
+													<label class="option-label" v-bind:for="'addon[' + index + ']'">
 														<span class="option-text">{{ addon.text }}</span>
 														<span class="option-price">+{{ addon.price }}</span>
 													</label>
@@ -458,10 +630,13 @@ export default {
 									<hr class="opacity-1">
 									<div class="row">
 										<div class="col-4">
-											<a href="#" class="btn btn-default fw-semibold mb-0 d-block py-3 w-100" data-bs-dismiss="modal">Cancel</a>
+											<a href="#" class="btn btn-default fw-semibold mb-0 d-block py-3 w-100"
+												data-bs-dismiss="modal">Cancelar</a>
 										</div>
 										<div class="col-8">
-											<button type="submit" class="btn btn-theme fw-semibold d-flex justify-content-center align-items-center py-3 m-0 w-100">Add to cart <i class="fa fa-plus ms-2 my-n3"></i></button>
+											<button type="submit"
+												class="btn btn-theme fw-semibold d-flex justify-content-center align-items-center py-3 m-0 w-100">Agregar
+												al carrito <i class="fa fa-plus ms-2 my-n3"></i></button>
 										</div>
 									</div>
 								</div>
@@ -473,3 +648,8 @@ export default {
 		</div>
 	</div>
 </template>
+<style scoped>
+.filled {
+	color: gold;
+}
+</style>
