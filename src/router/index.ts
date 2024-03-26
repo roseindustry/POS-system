@@ -22,25 +22,25 @@ const router = createRouter({
 			path: '/pos/customer-order',
 			name: 'Nueva orden',
 			component: () => import('../views/PosCustomerOrder.vue'),
-			meta: { roles: ['admin', 'superadmin', 'gerente'] }
+			meta: { roles: ['admin', 'superadmin', 'gerente', 'mesero'] }
 		},
 		{
 			path: '/pos/kitchen-order',
 			name: 'Ordenes de cocina',
 			component: () => import('../views/PosKitchenOrder.vue'),
-			meta: { roles: ['admin', 'superadmin', 'gerente'] }
+			meta: { roles: ['admin', 'superadmin', 'gerente', 'mesero'] }
 		},
 		{
 			path: '/pos/counter-checkout',
 			name: 'Checkout',
 			component: () => import('../views/PosCounterCheckout.vue'),
-			meta: { roles: ['admin', 'superadmin', 'gerente'] }
+			meta: { roles: ['admin', 'superadmin', 'gerente', 'mesero', 'cajero'] }
 		},
 		{
 			path: '/pos/table-booking',
 			name: 'Control de mesas',
 			component: () => import('../views/PosTableBooking.vue'),
-			meta: { roles: ['admin', 'superadmin', 'gerente'] }
+			meta: { roles: ['admin', 'superadmin', 'gerente', 'mesero'] }
 		},
 		{
 			path: '/pos/menu-stock',
@@ -79,9 +79,15 @@ const router = createRouter({
 			meta: { roles: ['admin', 'superadmin', 'gerente'] }
 		},
 		{
-			path: '/page/reports',
+			path: '/page/reports-by-client',
 			name: 'Reportes por cliente',
-			component: () => import('../views/Reports.vue'),
+			component: () => import('../views/ReportsByClient.vue'),
+			meta: { roles: ['admin', 'superadmin', 'gerente'] }
+		},
+		{
+			path: '/page/reports-by-rating',
+			name: 'Reportes por actividad',
+			component: () => import('../views/ReportsByActivity.vue'),
 			meta: { roles: ['admin', 'superadmin', 'gerente'] }
 		},
 		{

@@ -1,8 +1,7 @@
 <script>
-import { RouterLink } from 'vue-router';
 import { useAppOptionStore } from '@/stores/app-option';
 import { useTenancyStore } from '@/stores/tenancy';
-import { useUserStore } from '@/stores/user-role';
+import { getSubdomain } from '@/utils/subdomain';
 import PosHeader from '@/components/app/PosHeader.vue'
 import { ref as dbRef, query, orderByChild, equalTo, get, push, set, update, remove } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -20,10 +19,10 @@ export default {
 			menu: {
 				name: '',
 				description: '',
-				stock: '',
 				status: '',
 				purchasePrice: '',
 				sellingPrice: '',
+				iva: 16
 			},
 			menuItems: [],
 			categories: [],
@@ -39,11 +38,22 @@ export default {
 	components: {
 		PosHeader,
 	},
-	created() {
+	async mounted() {
+		const tenancyStore = useTenancyStore();
+		this.subdomain = getSubdomain();
+
+		// Automatically find or create tenant upon component mount
+		await tenancyStore.findOrCreateTenant(this.subdomain);
+
+		if (tenancyStore.tenant) {
+			this.tenantName = tenancyStore.tenant.name;
+		} else {
+			console.error("Tenant could not be found or created");
+		}
+
 		this.fetchMenuItems();
 		this.fetchMenuCategories();
-	},
-	mounted() {
+
 		appOption.appSidebarHide = true;
 		appOption.appHeaderHide = true;
 		appOption.appContentClass = 'p-0';
@@ -57,8 +67,10 @@ export default {
 	},
 	methods: {
 		async fetchMenuItems() {
+			const tenancyStore = useTenancyStore();
+			const tenantId = tenancyStore.tenant.key;
 
-			const menuItemRef = dbRef(db, `MenuItems`);
+			const menuItemRef = query(dbRef(db, 'MenuItems'), orderByChild('tenant_id'), equalTo(tenantId));
 			const menuItemSnapshot = await get(menuItemRef);
 
 			if (menuItemSnapshot.exists()) {
@@ -69,7 +81,6 @@ export default {
 						image: menuItemData.image,
 						name: menuItemData.name,
 						description: menuItemData.description,
-						stock: menuItemData.stock,
 						sellingPrice: menuItemData.sellingPrice,
 						status: menuItemData.status
 					});
@@ -80,8 +91,10 @@ export default {
 		},
 
 		async fetchMenuCategories() {
+			const tenancyStore = useTenancyStore();
+			const tenantId = tenancyStore.tenant.key;
 
-			const categoryRef = dbRef(db, `Categories`);
+			const categoryRef = query(dbRef(db, 'Categories'), orderByChild('tenant_id'), equalTo(tenantId));
 			const categorySnapshot = await get(categoryRef);
 
 			if (categorySnapshot.exists()) {
@@ -141,9 +154,10 @@ export default {
 					},
 				}).showToast();
 				return newCategoryRef.key;
+
 			} catch (e) {
 				console.error("Ocurrio un error: ", e);
-				return null; 
+				return null;
 			}
 		},
 
@@ -164,7 +178,6 @@ export default {
 				item.updatedImagePreview = updatedImagePreviewUrl;
 			}
 		},
-
 		async createMenuItem() {
 			// Tenant id
 			const tenancyStore = useTenancyStore();
@@ -191,8 +204,8 @@ export default {
 				description: this.menu.description,
 				purchasePrice: this.menu.purchasePrice,
 				sellingPrice: this.menu.sellingPrice,
-				stock: this.menu.stock,
 				status: this.menu.status,
+				iva: this.menu.iva,
 				image: imageUrl,
 				tenant_id: tenantId
 			};
@@ -205,6 +218,11 @@ export default {
 			})
 				.then(() => {
 					console.log('Platillo fue agregado al menu.');
+
+					// Update the UI to display new menuItem
+					const newMenuItem = { id: newMenuItemRef.key, ...submission };
+					this.menuItems.push(newMenuItem);
+
 					//Toast to show Success form Submission
 					Toastify({
 						text: "Nuevo Item registrado con exito!",
@@ -222,6 +240,7 @@ export default {
 
 			// Reset form
 			this.selectedCategory = null;
+			this.categoryName = "";
 			this.resetMenuItemData();
 			this.resetFileInputAndPreview();
 		},
@@ -230,7 +249,6 @@ export default {
 			this.menu = {
 				name: '',
 				description: '',
-				stock: '',
 				status: '',
 				purchasePrice: '',
 				sellingPrice: '',
@@ -255,6 +273,7 @@ export default {
 
 			// Check if an image was selected for update and get URL
 			let imageUrl = item.image;
+
 			if (this.imageFile) {
 				imageUrl = await this.uploadImageToStorage(this.imageFile);
 				this.imageFile = null;
@@ -266,17 +285,22 @@ export default {
 				name: item.name,
 				description: item.description,
 				sellingPrice: item.sellingPrice,
-				stock: item.stock,
-				status: item.status,
-				image: imageUrl
+				status: item.status
 			};
+
+			// Only add the image to updateData if imageUrl is defined
+			if (imageUrl) {
+				updateData.image = imageUrl;
+			}
 
 			try {
 				await update(menuItemRef, updateData);
 				console.log("Menu item updated successfully");
 
-				// Update local item's image to ensure UI reactivity
-				item.image = imageUrl;
+				// Update the item's image property for UI reactivity
+				if (imageUrl) {
+					item.image = imageUrl;
+				}
 
 				Toastify({
 					text: "Modificado con exito!",
@@ -375,16 +399,16 @@ export default {
 									<input v-if="menu.isEditing" type="text" class="form-control"
 										v-model="menu.description" />
 									<div class="d-flex align-items-center mb-3">
-										<div class="w-100px">Inventario:</div>
+										<div class="w-100px">Precio de venta:</div>
 										<div class="flex-1">
-											<input type="number" class="form-control" v-model="menu.stock"
+											<input type="number" class="form-control" v-model="menu.sellingPrice"
 												:disabled="!menu.isEditing" />
 										</div>
 									</div>
 									<div class="d-flex align-items-center mb-3">
-										<div class="w-100px">Precio de venta:</div>
+										<div class="w-100px">IVA:</div>
 										<div class="flex-1">
-											<input type="number" class="form-control" v-model="menu.sellingPrice"
+											<input type="number" class="form-control" v-model="menu.iva"
 												:disabled="!menu.isEditing" />
 										</div>
 									</div>
@@ -462,25 +486,37 @@ export default {
 								<textarea class="form-control" id="menuItemDescription" rows="3"
 									v-model="menu.description"></textarea>
 							</div>
-							<!-- Inventario -->
-							<div class="mb-3">
-								<label for="menuItemStock" class="form-label">Inventario</label>
-								<input type="number" class="form-control" id="menuItemStock" v-model.number="menu.stock"
-									required>
-							</div>
 							<!-- costos -->
 							<div class="row mb-3">
 								<!-- Precio de venta-->
-								<div class=" col mb-3">
+								<div class="col mb-3">
 									<label for="menuItemPrice" class="form-label">Precio de compra</label>
-									<input type="number" class="form-control" id="menuItemPrice"
-										v-model.number="menu.purchasePrice" required>
+									<div class="input-group">
+										<span class="input-group-text">$</span>
+										<input type="number" class="form-control" id="menuItemPrice"
+											v-model.number="menu.purchasePrice" required>
+									</div>
 								</div>
 								<!-- Precio de venta-->
 								<div class="col mb-3">
 									<label for="menuItemPrice" class="form-label">Precio de venta</label>
-									<input type="number" class="form-control" id="menuItemPrice"
-										v-model.number="menu.sellingPrice" required>
+									<div class="input-group">
+										<span class="input-group-text">$</span>
+										<input type="number" class="form-control" id="menuItemPrice"
+											v-model.number="menu.sellingPrice" required>
+									</div>
+								</div>
+							</div>
+							<!-- IVA -->
+							<div class="row mb-3">
+								<div class=" col mb-3">
+									<label for="menuItemIva" class="form-label">IVA</label>
+									<div class="input-group" style="width: 30%;">
+										<span class="input-group-text">$</span>
+										<input type="number" class="form-control" id="menuItemIva"
+											v-model.number="menu.iva" required>
+									</div>
+
 								</div>
 							</div>
 							<!-- Disponibilidad -->
