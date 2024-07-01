@@ -4,11 +4,16 @@ import { getSubdomain } from '@/utils/subdomain';
 import { db } from '@/firebase/init';
 import { ref as dbRef, get, query, orderByChild, equalTo } from 'firebase/database';
 import { Modal } from 'bootstrap';
-import datepicker from 'vue3-datepicker';
 import 'vue-datepicker-next/index.css';
 import Toastify from 'toastify-js'
 import 'toastify-js/src/toastify.css'
 import * as XLSX from 'xlsx';
+import moment from 'moment';
+
+// Helper function defined outside the component export
+function isISODateString(dateString) {
+	return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/.test(dateString);
+}
 
 export default {
 	data() {
@@ -91,10 +96,21 @@ export default {
 					const clientName = clientSnapshot.exists() ? clientSnapshot.val().firstName + " " + clientSnapshot.val().lastName : 'Unknown Client';
 					const menuItems = orderData.menuItems;
 
+					// Format date
+					let orderDate;
+					if (isISODateString(orderData.orderDate)) {
+						// ISO string format
+						orderDate = moment(orderData.orderDate).format('DD/MM/YYYY');
+					} else {
+						// 'DD/MM/YYYY' format or other non-ISO string
+						orderDate = moment(orderData.orderDate, 'DD/MM/YYYY').format('DD/MM/YYYY');
+					}
+
 					this.modalOrder = {
 						id: orderId,
 						...orderData,
 						clientName,
+						orderDate,
 						menuItems,
 					};
 				} else {
@@ -104,6 +120,16 @@ export default {
 
 					const ordersPromises = Object.keys(ordersData).map(async (key) => {
 						const order = ordersData[key];
+
+						// Format date
+						let orderDate;
+						if (isISODateString(order.orderDate)) {
+							// ISO string format
+							orderDate = moment(order.orderDate).format('DD/MM/YYYY');
+						} else {
+							// 'DD/MM/YYYY' format or other non-ISO string
+							orderDate = moment(order.orderDate, 'DD/MM/YYYY').format('DD/MM/YYYY');
+						}
 
 						// Fetch client name
 						const clientSnapshot = await get(dbRef(db, `Users/${order.client_id}`));
@@ -136,6 +162,7 @@ export default {
 						return {
 							id: key,
 							...order,
+							orderDate,
 							clientName,
 							itemsCount,
 							menuItems: menuItemsWithDetails,
@@ -177,9 +204,21 @@ export default {
 
 				if (snapshot.exists()) {
 					let ratingData = null;
+					let ratingDate = null;
 					snapshot.forEach((childSnapshot) => {
 						if (!ratingData) {
 							ratingData = childSnapshot.val();
+
+							// Format date
+							if (isISODateString(ratingData.date)) {
+								// ISO string format
+								ratingDate = moment(ratingData.date).format('DD/MM/YYYY');
+							} else {
+								// 'DD/MM/YYYY' format or other non-ISO string
+								ratingDate = moment(ratingData.date, 'DD/MM/YYYY').format('DD/MM/YYYY');
+							}
+
+							ratingData.date = ratingDate;
 							ratingData.id = childSnapshot.key;
 						}
 					});
@@ -212,11 +251,29 @@ export default {
 		},
 		openOrderModal(order) {
 			this.selectedOrderMenuItems = order.menuItems;
-			console.log(this.selectedOrderMenuItems);
 			new Modal(document.getElementById('orderModal')).show();
 		},
 		setActiveTab(tabId) {
 			this.activeTab = tabId;
+		},
+		exportToExcel() {
+			let worksheet_data = this.orders.map(order => ({
+				'# de Orden': order.orderNumber,
+				'Fecha': order.orderDate,
+				'Cliente': order.clientName,
+				'Total': order.totalPricePaid.toFixed(2),
+				'Estado de pago': order.status === 'Completed' ? 'Completada' : order.status === 'Pending' ? 'Pendiente' : order.status,
+				'Cantidad': order.itemsCount,
+				'Tipo de pedido': order.type === 'DineIn' ? 'Local' : order.type === 'Takeaway' ? 'Para llevar' : order.type
+			}));
+
+			// Convert the data to a worksheet
+			const worksheet = XLSX.utils.json_to_sheet(worksheet_data, { skipHeader: false });
+			const workbook = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte-ordenes');
+
+			// Export the workbook
+			XLSX.writeFile(workbook, 'reporte-ordenes-de-hoy.xlsx');
 		},
 	},
 	async mounted() {
@@ -247,7 +304,7 @@ export default {
 
 	<div class="mb-md-4 mb-3 d-md-flex">
 		<div class="mt-md-0 mt-2">
-			<a href="#" class="text-body text-decoration-none">
+			<a href="#" class="text-body text-decoration-none" @click="exportToExcel">
 				<i class="fa fa-download fa-fw me-1 text-muted"></i>
 				Exportar
 			</a>
@@ -322,11 +379,14 @@ export default {
 									<span
 										:class="`badge ${order.status === 'Completed' ? 'bg-teal' : 'bg-danger'} text-white-800 bg-opacity-25 px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center`">
 										<i class="fa fa-circle text-white fs-9px fa-fw me-5px"></i>
-										{{ order.status }}
+										{{ order.status === 'Completed' ? 'Completada' : order.status === 'Pending' ?
+				'Pendiente' : order.status }}
 									</span>
 								</td>
 								<td class="align-middle">{{ order.itemsCount }} items</td>
-								<td class="align-middle">{{ order.type }}</td>
+								<td class="align-middle">{{ order.type === 'DineIn' ? 'Local' : order.type ===
+				'Takeaway' ? 'Para llevar' :
+				'' }}</td>
 								<td class="align-middle">
 									<a href="#" class="btn btn-theme" @click.prevent="openRating(order.id)"><i
 											class="fa-solid fa-comment"></i> Ver reseña</a>
@@ -406,11 +466,14 @@ export default {
 									<span
 										:class="`badge ${order.status === 'Completed' ? 'bg-teal' : 'bg-danger'} text-white-800 bg-opacity-25 px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center`">
 										<i class="fa fa-circle text-white fs-9px fa-fw me-5px"></i>
-										{{ order.status }}
+										{{ order.status === 'Completed' ? 'Completada' : order.status === 'Pending' ?
+				'Pendiente' : order.status }}
 									</span>
 								</td>
 								<td class="align-middle">{{ order.itemsCount }} items</td>
-								<td class="align-middle">{{ order.type }}</td>
+								<td class="align-middle">{{ order.type === 'DineIn' ? 'Local' : order.type ===
+				'Takeaway' ? 'Para llevar' :
+				'' }}</td>
 								<td class="align-middle">
 									<a href="#" class="btn btn-theme" @click.prevent="openRating(order.id)"><i
 											class="fa-solid fa-comment"></i> Ver reseña</a>
@@ -490,11 +553,14 @@ export default {
 									<span
 										:class="`badge ${order.status === 'Completed' ? 'bg-teal' : 'bg-danger'} text-white-800 bg-opacity-25 px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center`">
 										<i class="fa fa-circle text-white fs-9px fa-fw me-5px"></i>
-										{{ order.status }}
+										{{ order.status === 'Completed' ? 'Completada' : order.status === 'Pending' ?
+				'Pendiente' : order.status }}
 									</span>
 								</td>
 								<td class="align-middle">{{ order.itemsCount }} items</td>
-								<td class="align-middle">{{ order.type }}</td>
+								<td class="align-middle">{{ order.type === 'DineIn' ? 'Local' : order.type ===
+				'Takeaway' ? 'Para llevar' :
+				'' }}</td>
 								<td class="align-middle">
 									<a href="#" class="btn btn-theme" @click.prevent="openRating(order.id)"><i
 											class="fa-solid fa-comment"></i> Ver reseña</a>

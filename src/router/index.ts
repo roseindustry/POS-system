@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { db } from '@/firebase/init';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from '@/firebase/init';
+import { onAuthStateChanged } from 'firebase/auth';
 import { ref, get } from 'firebase/database';
 
 const router = createRouter({
@@ -73,6 +73,12 @@ const router = createRouter({
 			meta: { roles: ['admin', 'superadmin', 'gerente'] }
 		},
 		{
+			path: '/page/coupons',
+			name: 'Cupones de cliente',
+			component: () => import('../views/PageCoupons.vue'),
+			meta: { roles: ['cliente'] }
+		},
+		{
 			path: '/page/order-details',
 			name: 'Detalles de orden',
 			component: () => import('../views/PageOrderDetails.vue'),
@@ -124,14 +130,18 @@ const router = createRouter({
 		{
 			path: '/:pathMatch(.*)*',
 			component: () => import('../views/PageError.vue')
+		},
+		{
+			path: '/landing',
+			name: 'Landing Page',
+			component: () => import('../views/Landing.vue')
 		}
 	],
 });
 
 // Navigation guard to check user role against route meta
 router.beforeEach((to, from, next) => {
-	new Promise((resolve, reject) => {
-	  const auth = getAuth();
+	new Promise((resolve) => {
 	  onAuthStateChanged(auth, (user) => {
 		if (user) {
 		  // User is signed in, fetch the role
